@@ -1,0 +1,174 @@
+name: Build and Publish tree-sitter-fish WASM
+
+on:
+  schedule:
+    # Check for new releases every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    # Allow manual trigger
+  push:
+    branches: [ master, main ]
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential python3 python3-pip
+        npm install -g node-gyp
+
+    - name: Setup Emscripten
+      uses: mymindstorm/setup-emsdk@v14
+      with:
+        version: '3.1.45'
+
+    - name: Get latest upstream release
+      id: upstream-release
+      run: |
+        LATEST_TAG=$(curl -s https://api.github.com/repos/ram02z/tree-sitter-fish/releases/latest | jq -r .tag_name)
+        echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+        echo "Latest upstream tag: $LATEST_TAG"
+
+    - name: Read last processed version
+      id: last-version
+      run: |
+        if [ -f last-version.txt ]; then
+          LAST_VERSION=$(cat last-version.txt)
+        else
+          LAST_VERSION=""
+        fi
+        echo "last_version=$LAST_VERSION" >> $GITHUB_OUTPUT
+        echo "Last processed version: $LAST_VERSION"
+
+    - name: Check if new version available
+      id: version-check
+      run: |
+        if [ "${{ steps.upstream-release.outputs.latest_tag }}" != "${{ steps.last-version.outputs.last_version }}" ]; then
+          echo "new_version=true" >> $GITHUB_OUTPUT
+          echo "New version detected: ${{ steps.upstream-release.outputs.latest_tag }}"
+        else
+          echo "new_version=false" >> $GITHUB_OUTPUT
+          echo "No new version available"
+        fi
+
+    - name: Clone and build upstream
+      if: steps.version-check.outputs.new_version == 'true'
+      run: |
+        # Clone upstream repo
+        git clone https://github.com/ram02z/tree-sitter-fish.git upstream-repo
+        cd upstream-repo
+        
+        # Checkout the latest tag
+        git checkout ${{ steps.upstream-release.outputs.latest_tag }}
+        
+        # Install dependencies
+        npm install
+        
+        # Build WASM
+        npm run build:wasm
+        
+        # Copy WASM file to our repo
+        cp tree-sitter-fish.wasm ../tree-sitter-fish.wasm
+        
+        cd ..
+        echo "WASM build completed"
+
+    - name: Update package version
+      if: steps.version-check.outputs.new_version == 'true'
+      run: |
+        # Extract version number (remove 'v' prefix if present)
+        VERSION=${{ steps.upstream-release.outputs.latest_tag }}
+        VERSION=${VERSION#v}
+        
+        # Update package.json version
+        npm version $VERSION --no-git-tag-version
+        
+        echo "Updated package version to $VERSION"
+
+    - name: Test package
+      if: steps.version-check.outputs.new_version == 'true'
+      run: |
+        # Test that WASM file exists and is valid
+        test -f tree-sitter-fish.wasm || (echo "WASM file missing!" && exit 1)
+        
+        # Test package structure
+        npm pack --dry-run
+        
+        # Create test package
+        npm pack
+        
+        # Basic module load test
+        node -e "
+          try {
+            const pkg = require('./index.js');
+            console.log('Package exports:', Object.keys(pkg));
+            console.log('Language name:', pkg.languageName);
+            console.log('WASM path exists:', require('fs').existsSync(pkg.wasmPath));
+            console.log('Package test: PASSED');
+          } catch (e) {
+            console.error('Package test: FAILED', e);
+            process.exit(1);
+          }
+        "
+
+    - name: Update version tracking
+      if: steps.version-check.outputs.new_version == 'true'
+      run: |
+        echo "${{ steps.upstream-release.outputs.latest_tag }}" > last-version.txt
+
+    - name: Commit and push changes
+      if: steps.version-check.outputs.new_version == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add .
+        git commit -m "Auto-build: Update to ${{ steps.upstream-release.outputs.latest_tag }}"
+        git push
+
+    - name: Publish to NPM
+      if: steps.version-check.outputs.new_version == 'true' && env.NPM_TOKEN != ''
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      run: |
+        npm publish --access public
+
+    - name: Create GitHub Release
+      if: steps.version-check.outputs.new_version == 'true'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.upstream-release.outputs.latest_tag }}
+        release_name: Release ${{ steps.upstream-release.outputs.latest_tag }}
+        body: |
+          Auto-generated release for tree-sitter-fish ${{ steps.upstream-release.outputs.latest_tag }}
+          
+          This package contains the WebAssembly build of tree-sitter-fish grammar.
+          
+          Upstream release: https://github.com/ram02z/tree-sitter-fish/releases/tag/${{ steps.upstream-release.outputs.latest_tag }}
+        draft: false
+        prerelease: false
+
+    - name: Upload package artifacts
+      if: steps.version-check.outputs.new_version == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: npm-package
+        path: |
+          *.tgz
+          tree-sitter-fish.wasm
+        retention-days: 30

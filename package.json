@@ -1,0 +1,52 @@
+{
+  "name": "@ndonfris/tree-sitter-fish",
+  "version": "0.0.0",
+  "description": "Tree-sitter grammar for Fish shell with WebAssembly support",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "require": "./index.js",
+      "types": "./index.d.ts"
+    },
+    "./tree-sitter-fish.wasm": "./tree-sitter-fish.wasm"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "tree-sitter-fish.wasm",
+    "README.md"
+  ],
+  "keywords": [
+    "tree-sitter",
+    "fish",
+    "shell",
+    "parser",
+    "wasm",
+    "webassembly",
+    "syntax",
+    "highlighting"
+  ],
+  "author": "ndonfris",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ndonfris/tree-sitter-fish.wasm.git"
+  },
+  "homepage": "https://github.com/ndonfris/tree-sitter-fish.wasm",
+  "bugs": {
+    "url": "https://github.com/ndonfris/tree-sitter-fish.wasm/issues"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "peerDependencies": {
+    "web-tree-sitter": "^0.20.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "node test.js",
+    "prepublishOnly": "test -f tree-sitter-fish.wasm || (echo 'WASM file missing!' && exit 1)"
+  }
+}
