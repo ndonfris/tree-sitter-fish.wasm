@@ -1,19 +1,23 @@
 {
   "name": "@ndonfris/tree-sitter-fish",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Tree-sitter grammar for Fish shell with WebAssembly support",
-  "main": "index.js",
+  "bin": {
+    "tree-sitter-fish.wasm": "./index.cjs"
+  },
+  "main": "index.cjs",
+  "type": "module",
   "types": "index.d.ts",
   "exports": {
     ".": {
-      "import": "./index.js",
-      "require": "./index.js",
+      "import": "./index.cjs",
+      "require": "./index.cjs",
       "types": "./index.d.ts"
     },
     "./tree-sitter-fish.wasm": "./tree-sitter-fish.wasm"
   },
   "files": [
-    "index.js",
+    "index.cjs",
     "index.d.ts",
     "tree-sitter-fish.wasm",
     "README.md"
@@ -40,9 +44,6 @@
   },
   "engines": {
     "node": ">=14.0.0"
-  },
-  "peerDependencies": {
-    "web-tree-sitter": "^0.20.0"
   },
   "devDependencies": {},
   "scripts": {
