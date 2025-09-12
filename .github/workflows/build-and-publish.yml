@@ -114,7 +114,7 @@ jobs:
         # Basic module load test
         node -e "
           try {
-            const pkg = require('./index.js');
+            const pkg = require('./index.cjs');
             console.log('Package exports:', Object.keys(pkg));
             console.log('Language name:', pkg.languageName);
             console.log('WASM path exists:', require('fs').existsSync(pkg.wasmPath));
