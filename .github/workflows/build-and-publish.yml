@@ -144,7 +144,7 @@ jobs:
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       run: |
-        npm publish --access public
+        npm publish
 
     - name: Create GitHub Release
       if: steps.version-check.outputs.new_version == 'true'
