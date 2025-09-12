@@ -1,6 +1,6 @@
 {
   "name": "@ndonfris/tree-sitter-fish",
-  "version": "0.0.1",
+  "version": "3.6.0",
   "description": "Tree-sitter grammar for Fish shell with WebAssembly support",
   "bin": {
     "tree-sitter-fish.wasm": "./index.cjs"
