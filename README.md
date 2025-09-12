@@ -6,21 +6,21 @@ Inspired by [@esdmr/tree-sitter-fish](https://github.com/esdmr/tree-sitter-fish)
 
 ## Installation
 
+### With web-tree-sitter (recommended)
+
 ```bash
 npm install @ndonfris/tree-sitter-fish web-tree-sitter
+```
+
+### WASM file only
+
+```bash
+npm install @ndonfris/tree-sitter-fish
 ```
 
 ## Usage
 
 ### With web-tree-sitter
-
-<table>
-<tr>
-<th>TypeScript</th>
-<th>JavaScript</th>
-</tr>
-<tr>
-<td>
 
 ```typescript
 import Parser from 'web-tree-sitter';
@@ -51,51 +51,95 @@ async function parseFishCode(): Promise<void> {
 parseFishCode();
 ```
 
-</td>
-<td>
+### With web-tree-sitter and inside bundle
 
-```javascript
-const Parser = require('web-tree-sitter');
-const { getWasm } = require('@ndonfris/tree-sitter-fish');
+```typescript
+import Parser from 'web-tree-sitter';
+import tsWasm from 'web-tree-sitter/tree-sitter.wasm?url';
+import tsFishWasm from '@esdmr/tree-sitter-fish?url';
 
-async function parseFishCode() {
-  await Parser.init();
-  const parser = new Parser();
-  
-  // Load the WASM grammar
-  const wasmBinary = await getWasm();
-  const Language = await Parser.Language.load(wasmBinary);
-  parser.setLanguage(Language);
-  
-  // Parse Fish code
-  const sourceCode = `
-    function greet
-        echo "Hello, $argv[1]!"
-    end
-    
-    greet World
-  `;
-  
-  const tree = parser.parse(sourceCode);
-  console.log(tree.rootNode.toString());
-}
-
-parseFishCode();
+await Parser.init({
+	locateFile() {
+		return tsWasm;
+	},
+});
+const fish = await Parser.Language.load(tsFishWasm);
 ```
 
-</td>
-</tr>
-</table>
+<!-- <table> -->
+<!-- <tr> -->
+<!-- <th>TypeScript</th> -->
+<!-- <th>JavaScript</th> -->
+<!-- </tr> -->
+<!-- <tr> -->
+<!-- <td> -->
+<!---->
+<!-- ```typescript -->
+<!-- import Parser from 'web-tree-sitter'; -->
+<!-- import { getWasm } from '@ndonfris/tree-sitter-fish'; -->
+<!---->
+<!-- async function parseFishCode(): Promise<void> { -->
+<!--   await Parser.init(); -->
+<!--   const parser = new Parser(); -->
+<!--    -->
+<!--   // Load the WASM grammar -->
+<!--   const wasmBinary = await getWasm(); -->
+<!--   const Language = await Parser.Language.load(wasmBinary); -->
+<!--   parser.setLanguage(Language); -->
+<!--    -->
+<!--   // Parse Fish code -->
+<!--   const sourceCode = ` -->
+<!--     function greet -->
+<!--         echo "Hello, $argv[1]!" -->
+<!--     end -->
+<!--      -->
+<!--     greet World -->
+<!--   `; -->
+<!--    -->
+<!--   const tree = parser.parse(sourceCode); -->
+<!--   console.log(tree.rootNode.toString()); -->
+<!-- } -->
+<!---->
+<!-- parseFishCode(); -->
+<!-- ``` -->
+<!---->
+<!-- </td> -->
+<!-- <td> -->
+<!---->
+<!-- ```javascript -->
+<!-- const Parser = require('web-tree-sitter'); -->
+<!-- const { getWasm } = require('@ndonfris/tree-sitter-fish'); -->
+<!---->
+<!-- async function parseFishCode() { -->
+<!--   await Parser.init(); -->
+<!--   const parser = new Parser(); -->
+<!--    -->
+<!--   // Load the WASM grammar -->
+<!--   const wasmBinary = await getWasm(); -->
+<!--   const Language = await Parser.Language.load(wasmBinary); -->
+<!--   parser.setLanguage(Language); -->
+<!--    -->
+<!--   // Parse Fish code -->
+<!--   const sourceCode = ` -->
+<!--     function greet -->
+<!--         echo "Hello, $argv[1]!" -->
+<!--     end -->
+<!--      -->
+<!--     greet World -->
+<!--   `; -->
+<!--    -->
+<!--   const tree = parser.parse(sourceCode); -->
+<!--   console.log(tree.rootNode.toString()); -->
+<!-- } -->
+<!---->
+<!-- parseFishCode(); -->
+<!-- ``` -->
+<!---->
+<!-- </td> -->
+<!-- </tr> -->
+<!-- </table> -->
 
 ### Direct WASM Access
-
-<table>
-<tr>
-<th>TypeScript</th>
-<th>JavaScript</th>
-</tr>
-<tr>
-<td>
 
 ```typescript
 import { wasmPath, languageName } from '@ndonfris/tree-sitter-fish';
@@ -108,23 +152,42 @@ console.log('Language:', languageName);
 const wasmModulePath = require.resolve('@ndonfris/tree-sitter-fish/tree-sitter-fish.wasm');
 ```
 
-</td>
-<td>
-
-```javascript
-const { wasmPath, languageName } = require('@ndonfris/tree-sitter-fish');
-
-// Get file path
-console.log('WASM file location:', wasmPath);
-console.log('Language:', languageName);
-
-// Or import the WASM file directly
-const wasmModulePath = require.resolve('@ndonfris/tree-sitter-fish/tree-sitter-fish.wasm');
-```
-
-</td>
-</tr>
-</table>
+<!-- <table> -->
+<!-- <tr> -->
+<!-- <th>TypeScript</th> -->
+<!-- <th>JavaScript</th> -->
+<!-- </tr> -->
+<!-- <tr> -->
+<!-- <td> -->
+<!---->
+<!-- ```typescript -->
+<!-- import { wasmPath, languageName } from '@ndonfris/tree-sitter-fish'; -->
+<!---->
+<!-- // Get file path -->
+<!-- console.log('WASM file location:', wasmPath); -->
+<!-- console.log('Language:', languageName); -->
+<!---->
+<!-- // Or import the WASM file directly -->
+<!-- const wasmModulePath = require.resolve('@ndonfris/tree-sitter-fish/tree-sitter-fish.wasm'); -->
+<!-- ``` -->
+<!---->
+<!-- </td> -->
+<!-- <td> -->
+<!---->
+<!-- ```javascript -->
+<!-- const { wasmPath, languageName } = require('@ndonfris/tree-sitter-fish'); -->
+<!---->
+<!-- // Get file path -->
+<!-- console.log('WASM file location:', wasmPath); -->
+<!-- console.log('Language:', languageName); -->
+<!---->
+<!-- // Or import the WASM file directly -->
+<!-- const wasmModulePath = require.resolve('@ndonfris/tree-sitter-fish/tree-sitter-fish.wasm'); -->
+<!-- ``` -->
+<!---->
+<!-- </td> -->
+<!-- </tr> -->
+<!-- </table> -->
 
 ## API
 
