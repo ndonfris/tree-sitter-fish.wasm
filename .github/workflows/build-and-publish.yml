@@ -2,12 +2,13 @@ name: Build and Publish tree-sitter-fish WASM
 
 on:
   schedule:
-    # Check for new releases every 6 hours
-    - cron: '0 */6 * * *'
+    # Check for new releases twice weekly (Monday and Thursday at 9 AM UTC)
+    - cron: '0 9 * * 1,4'
   workflow_dispatch:
     # Allow manual trigger
-  push:
-    branches: [ master, main ]
+  release:
+    types: [prereleased]
+    # Trigger on pre-releases pushed to this repo
 
 jobs:
   check-and-build:
@@ -43,26 +44,30 @@ jobs:
         echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
         echo "Latest upstream tag: $LATEST_TAG"
 
-    - name: Read last processed version
-      id: last-version
+    - name: Get existing releases from this repo
+      id: existing-releases
       run: |
-        if [ -f last-version.txt ]; then
-          LAST_VERSION=$(cat last-version.txt)
-        else
-          LAST_VERSION=""
-        fi
-        echo "last_version=$LAST_VERSION" >> $GITHUB_OUTPUT
-        echo "Last processed version: $LAST_VERSION"
+        # Get all releases from this repo (non-prerelease only for comparison)
+        EXISTING_RELEASES=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases | jq -r '.[] | select(.prerelease == false) | .tag_name' | head -10)
+        echo "existing_releases<<EOF" >> $GITHUB_OUTPUT
+        echo "$EXISTING_RELEASES" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        echo "Existing releases in this repo:"
+        echo "$EXISTING_RELEASES"
 
     - name: Check if new version available
       id: version-check
       run: |
-        if [ "${{ steps.upstream-release.outputs.latest_tag }}" != "${{ steps.last-version.outputs.last_version }}" ]; then
-          echo "new_version=true" >> $GITHUB_OUTPUT
-          echo "New version detected: ${{ steps.upstream-release.outputs.latest_tag }}"
-        else
+        UPSTREAM_TAG="${{ steps.upstream-release.outputs.latest_tag }}"
+        EXISTING_RELEASES="${{ steps.existing-releases.outputs.existing_releases }}"
+        
+        # Check if upstream tag already exists in our releases
+        if echo "$EXISTING_RELEASES" | grep -q "^$UPSTREAM_TAG$"; then
           echo "new_version=false" >> $GITHUB_OUTPUT
-          echo "No new version available"
+          echo "Version $UPSTREAM_TAG already exists in this repo"
+        else
+          echo "new_version=true" >> $GITHUB_OUTPUT
+          echo "New version detected: $UPSTREAM_TAG (not found in existing releases)"
         fi
 
     - name: Clone and build upstream
@@ -125,10 +130,6 @@ jobs:
           }
         "
 
-    - name: Update version tracking
-      if: steps.version-check.outputs.new_version == 'true'
-      run: |
-        echo "${{ steps.upstream-release.outputs.latest_tag }}" > last-version.txt
 
     - name: Commit and push changes
       if: steps.version-check.outputs.new_version == 'true'
@@ -161,7 +162,7 @@ jobs:
           
           Upstream release: https://github.com/ram02z/tree-sitter-fish/releases/tag/${{ steps.upstream-release.outputs.latest_tag }}
         draft: false
-        prerelease: false
+        prerelease: ${{ github.event_name == 'release' && github.event.release.prerelease }}
 
     - name: Upload package artifacts
       if: steps.version-check.outputs.new_version == 'true'
