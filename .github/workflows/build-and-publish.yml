@@ -26,6 +26,9 @@ jobs:
         node-version: '18'
         registry-url: 'https://registry.npmjs.org'
 
+    - name: Install Yarn
+      run: npm install -g yarn@1.22.22
+
     - name: Install build dependencies
       run: |
         sudo apt-get update
@@ -70,7 +73,7 @@ jobs:
           echo "New version detected: $UPSTREAM_TAG (not found in existing releases)"
         fi
 
-    - name: Clone and build upstream
+    - name: Clone, build, and copy upstream
       if: steps.version-check.outputs.new_version == 'true'
       run: |
         # Clone upstream repo
@@ -88,10 +91,20 @@ jobs:
         
         # Copy WASM file to our repo
         cp tree-sitter-fish.wasm ../tree-sitter-fish.wasm
-        
-        cd ..
         echo "WASM build completed"
 
+        cp -r queries ../queries
+        echo "Copied queries files"
+
+        cd ..
+        echo "Upstream build and copy completed"
+
+    - name: Install dependencies and build package
+      if: steps.version-check.outputs.new_version == 'true'
+      run: |
+        yarn install --frozen-lockfile
+        yarn build
+        echo "Package build completed"
     - name: Update package version
       if: steps.version-check.outputs.new_version == 'true'
       run: |
@@ -100,30 +113,41 @@ jobs:
         VERSION=${VERSION#v}
         
         # Update package.json version
-        npm version $VERSION --no-git-tag-version
+        yarn version --new-version $VERSION --no-git-tag-version
         
         echo "Updated package version to $VERSION"
 
     - name: Test package
       if: steps.version-check.outputs.new_version == 'true'
       run: |
-        # Test that WASM file exists and is valid
-        test -f tree-sitter-fish.wasm || (echo "WASM file missing!" && exit 1)
+        # Test that bundle files exist
+        test -f dist/index.js || (echo "CommonJS bundle missing!" && exit 1)
+        test -f dist/index.mjs || (echo "ESM bundle missing!" && exit 1)
+        test -f dist/cli.mjs || (echo "CLI bundle missing!" && exit 1)
         
         # Test package structure
-        npm pack --dry-run
+        yarn pack --dry-run
         
         # Create test package
-        npm pack
+        yarn pack
         
         # Basic module load test
         node -e "
           try {
-            const pkg = require('./index.cjs');
+            const pkg = require('./dist/index.js');
             console.log('Package exports:', Object.keys(pkg));
             console.log('Language name:', pkg.languageName);
-            console.log('WASM path exists:', require('fs').existsSync(pkg.wasmPath));
-            console.log('Package test: PASSED');
+            console.log('Version:', pkg.version);
+            console.log('WASM embedded:', pkg.wasmPath.startsWith('embedded://'));
+            console.log('Highlights embedded:', pkg.highlights.path.startsWith('embedded://'));
+            console.log('Highlights content length:', pkg.highlights.text.length);
+            pkg.getWasm().then(wasm => {
+              console.log('WASM size:', wasm.byteLength, 'bytes');
+              console.log('Package test: PASSED');
+            }).catch(e => {
+              console.error('WASM test failed:', e);
+              process.exit(1);
+            });
           } catch (e) {
             console.error('Package test: FAILED', e);
             process.exit(1);
@@ -145,7 +169,7 @@ jobs:
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       run: |
-        npm publish --access public
+        yarn publish --access public
 
     - name: Create GitHub Release
       if: steps.version-check.outputs.new_version == 'true'

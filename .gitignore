@@ -57,3 +57,4 @@ jspm_packages/
 
 # Keep the WASM file - it's our main artifact
 # tree-sitter-fish.wasm should be committed
+dist
