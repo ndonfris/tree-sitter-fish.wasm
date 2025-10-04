@@ -1,4 +1,5 @@
-# Fish shell completions for yarn scripts in this project
+# Fish shell completions for yarn scripts used to develop this project.
+# Will not be consumed by users! Only useful to developers!
 
 # If you are not having the completions to the scripts sourced after entering
 # this directory, you might want to use a dotenv loader for fish shell, such as:
@@ -11,6 +12,9 @@
 
 # Helper function to check if we're completing a specific yarn script
 function __fish_yarn_script_is
+    if not string match -q "$__tree_sitter_fish_wasm_dir*" $PWD
+        return 1
+    end
     set -l script $argv[1]
     set -l cmd (commandline -opc)
     set -l script_idx (contains -i -- $script $cmd 2>/dev/null)
@@ -26,6 +30,9 @@ end
 function __fish_yarn_current_version
     grep -oP '(?<="version": ")[^"]*' package.json 2>/dev/null
 end
+
+# Store the project directory for cleanup detection
+set -gx __tree_sitter_fish_wasm_dir (pwd)
 
 # Complete yarn script names when using 'yarn run'
 # complete -c yarn -n "__fish_seen_subcommand_from run" -a "dev build typecheck deps:build deps:check deps:check:upstream deps:check:local deps:check:current deps:update dev:pack dev:install set-version clean clean:packs clean:packs:keep-latest clean:only packs:latest test test:only prepublishOnly" -d "Run script"
@@ -65,3 +72,27 @@ complete -c yarn -f -n "__fish_yarn_script_is set-version" -l dev -s d -d "Creat
 complete -c yarn -f -n "__fish_yarn_script_is set-version" -l update-last-version -s u -d "Update last-version.txt"
 complete -c yarn -f -n "__fish_yarn_script_is set-version" -l save-current -s s -d "Save current package.json version to last-version.txt"
 complete -c yarn -f -n "__fish_yarn_script_is set-version" -l git-tag -s g -d "Create git tag for the version"
+
+# Cleanup completions when leaving the project directory
+function __cleanup_tree_sitter_fish_wasm --on-variable PWD
+    if not string match -q "$__tree_sitter_fish_wasm_dir*" $PWD
+        complete -c yarn -e
+
+        for file in $fish_complete_path/**
+            set filename (path basename -- $file)
+            if string match -rq -- '^yarn.fish*' "$filename"
+                source $file
+            end
+        end
+
+        # Remove helper functions
+        functions -e __fish_yarn_script_is
+        functions -e __fish_yarn_git_tags
+        functions -e __fish_yarn_current_version
+        functions -e __cleanup_tree_sitter_fish_wasm
+
+        # Remove the directory variable
+        set -e __tree_sitter_fish_wasm_dir
+    end
+end
+__cleanup_tree_sitter_fish_wasm
