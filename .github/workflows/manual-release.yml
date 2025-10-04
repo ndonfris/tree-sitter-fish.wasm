@@ -125,10 +125,11 @@ jobs:
         fi
 
         if [ "${{ steps.version.outputs.is_prerelease }}" = "true" ]; then
-          yarn publish --access public --tag next
-          echo "✅ Published to NPM (tag: next)"
+          npm publish --access public --tag dev 
+          echo "✅ Published to NPM (tag: dev)"
         else
-          yarn publish --access public
+          # npm publish --access public
+          npm publish --access public --tag dev
           echo "✅ Published to NPM (tag: latest)"
         fi
 
