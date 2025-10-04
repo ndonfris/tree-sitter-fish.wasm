@@ -26,26 +26,26 @@ async function buildPackage() {
     throw new Error('Highlights file not found. Please ensure queries/highlights.scm exists.');
   }
 
-  // Build main ESM bundle
+  // Build ESM bundle (also serves as CLI)
   await build({
     entryPoints: [resolve('src/index.ts')],
     bundle: true,
-    platform: 'neutral',
+    platform: 'node',
     format: 'esm',
     outfile: resolve('dist/index.mjs'),
-    minify: false, // Keep readable for debugging
+    minify: false,
     sourcemap: true,
-    target: 'es2018',
+    target: 'node14',
     loader: {
       '.wasm': 'binary',
       '.scm': 'text',
     },
     banner: {
-      js: '// @ndonfris/tree-sitter-fish - Standalone ESM bundle'
+      js: '#!/usr/bin/env node\n// @ndonfris/tree-sitter-fish - ESM bundle + CLI'
     }
   });
 
-  // Build main CommonJS bundle
+  // Build CJS bundle (also serves as CLI)
   await build({
     entryPoints: [resolve('src/index.ts')],
     bundle: true,
@@ -54,41 +54,26 @@ async function buildPackage() {
     outfile: resolve('dist/index.js'),
     minify: false,
     sourcemap: true,
-    target: 'node18',
-    loader: {
-      '.wasm': 'binary',
-      '.scm': 'text',
-    },
-    banner: {
-      js: '// @ndonfris/tree-sitter-fish - Standalone CommonJS bundle'
-    },
-    footer: {
-      js: 'module.exports = Object.assign(module.exports.default || {}, module.exports);'
-    }
-  });
-
-// Build CLI
-  await build({
-    entryPoints: [resolve('src/cli.ts')],
-    bundle: true,
-    platform: 'node',
-    format: 'esm',
-    outfile: resolve('dist/cli.mjs'),
-    minify: false,
-    sourcemap: true,
     target: 'node14',
     loader: {
       '.wasm': 'binary',
       '.scm': 'text',
     },
-    external: ['./index.mjs'], // Reference the main bundle
     banner: {
-      js: '#!/usr/bin/env node\n// @ndonfris/tree-sitter-fish CLI'
+      js: '#!/usr/bin/env node\n// @ndonfris/tree-sitter-fish - CommonJS bundle + CLI'
+    },
+    footer: {
+      js: `
+// Ensure proper default export for CommonJS
+if (module.exports.default) {
+  module.exports = Object.assign(module.exports.default, module.exports);
+}`
     }
   });
 
-  // Make CLI executable
-  chmodSync(resolve('dist/cli.mjs'), 0o755);
+  // Make bundles executable (for CLI usage)
+  chmodSync(resolve('dist/index.js'), 0o755);
+  chmodSync(resolve('dist/index.mjs'), 0o755);
 
   // Generate TypeScript declarations
   execSync('yarn build:types', { encoding: 'utf-8' });
@@ -97,9 +82,8 @@ async function buildPackage() {
   // writeFileSync(resolve('dist/index.d.mts'), dtsContent);
 
   console.log('✅ Build complete! Generated files:');
-  console.log('  📦 dist/index.js (CommonJS bundle)');
-  console.log('  📦 dist/index.mjs (ESM bundle)');
-  console.log('  📦 dist/cli.mjs (CLI tool)');
+  console.log('  📦 dist/index.js (CommonJS bundle + CLI - bin entry point)');
+  console.log('  📦 dist/index.mjs (ESM bundle + CLI)');
   console.log('  📦 dist/index.d.ts (TypeScript definitions)');
   console.log('  ✅ All assets embedded - no external dependencies!');
 }
