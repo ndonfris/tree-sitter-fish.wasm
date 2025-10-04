@@ -1,15 +1,20 @@
 {
   "name": "@ndonfris/tree-sitter-fish",
-  "version": "3.6.0",
+  "version": "3.6.0-dev.1759537197301",
   "description": "Tree-sitter grammar for Fish shell with WebAssembly support",
   "bin": {
-    "tree-sitter-fish.wasm": "./dist/cli.mjs"
+    "tree-sitter.fish.wasm": "./dist/cli.mjs"
   },
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./tree-sitter-fish.wasm": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
@@ -46,16 +51,32 @@
     "access": "public"
   },
   "devDependencies": {
+    "@types/node": "^24.6.2",
     "esbuild": "^0.25.10",
-    "rimraf": "^6.0.1"
+    "npm-run-all": "^4.1.5",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.9.3"
   },
   "scripts": {
+    "dev": "node scripts/build.js",
     "build": "node scripts/build.js",
-    "dev": "node scripts/build.js && echo 'Build complete. Run again after changes.'",
-    "clean": "rimraf dist",
+    "typecheck": "tsc --noEmit",
+    "deps:build": "node scripts/build-deps.js",
+    "deps:check": "node scripts/deps-check.js compare",
+    "deps:check:upstream": "node scripts/deps-check.js upstream",
+    "deps:check:local": "node scripts/deps-check.js local",
+    "deps:check:current": "node scripts/deps-check.js current",
+    "deps:update": "yarn deps:build latest && yarn set-version $(yarn -s deps:check:upstream) --update-last-version",
     "dev:pack": "node scripts/dev-install.js pack",
     "dev:install": "node scripts/dev-install.js install",
-    "prepublishOnly": "yarn build && test -f dist/index.js || (echo 'Bundle missing!' && exit 1)",
-    "test": "node -e \"const pkg = require('./dist/index.js'); console.log('✓ Package loads correctly'); console.log('✓ Exports:', Object.keys(pkg)); console.log('✓ Language:', pkg.languageName); console.log('✓ Version:', pkg.version);\""
+    "set-version": "node scripts/set-version.js",
+    "clean": "rimraf dist node_modules *.tgz",
+    "clean:packs": "rimraf *.tgz",
+    "clean:packs:keep-latest": "ls -t *.tgz 2>/dev/null | tail -n +2 | xargs -r rm -f",
+    "clean:only": "rimraf",
+    "packs:latest": "ls -t *.tgz | head -n1",
+    "test": "run-s typecheck build test:only",
+    "test:only": "node scripts/test.js",
+    "prepublishOnly": "yarn build && test -f dist/index.js || (echo 'Bundle missing!' && exit 1)"
   }
 }
