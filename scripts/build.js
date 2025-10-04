@@ -3,6 +3,8 @@
 const { build } = require('esbuild');
 const { readFileSync, readdirSync, writeFileSync, existsSync, mkdirSync, rmSync, copyFileSync, chmodSync } = require('fs');
 const { resolve, join } = require('path');
+const { execSync } = require('child_process');
+
 
 async function buildPackage() {
   console.log('  Building standalone tree-sitter-fish package...');
@@ -89,36 +91,10 @@ async function buildPackage() {
   chmodSync(resolve('dist/cli.mjs'), 0o755);
 
   // Generate TypeScript declarations
-  const dtsContent = `/**
- * Tree-sitter grammar for Fish shell with WebAssembly support
- * All assets are embedded in the bundle - no external files needed
- */
+  execSync('yarn build:types', { encoding: 'utf-8' });
 
-/**
- * Language name identifier
- */
-export declare const languageName: 'fish';
-
-/**
- * Package version
- */
-export declare const version: string;
-
-/**
- * Highlights query content
- */
-export declare const highlights: string;
-
-/**
- * Default export - the WASM binary as Uint8Array
- * Use with tree-sitter or web-tree-sitter
- */
-declare const fishLanguage: Uint8Array;
-export default fishLanguage;
-`;
-
-  writeFileSync(resolve('dist/index.d.ts'), dtsContent);
-  writeFileSync(resolve('dist/index.d.mts'), dtsContent);
+  // writeFileSync(resolve('dist/index.d.ts'), dtsContent);
+  // writeFileSync(resolve('dist/index.d.mts'), dtsContent);
 
   console.log('✅ Build complete! Generated files:');
   console.log('  📦 dist/index.js (CommonJS bundle)');

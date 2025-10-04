@@ -60,6 +60,7 @@
   "scripts": {
     "dev": "node scripts/build.js",
     "build": "node scripts/build.js",
+    "build:types": "tsc --emitDeclarationOnly --outDir dist/ --listEmittedFiles --inlineSourceMap false",
     "typecheck": "tsc --noEmit",
     "deps:build": "node scripts/build-deps.js",
     "deps:check": "node scripts/deps-check.js compare",
