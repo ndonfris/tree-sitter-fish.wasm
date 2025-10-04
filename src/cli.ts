@@ -16,7 +16,7 @@ function copyToTarget(targetPath: string): void {
 }
 
 function printHelp(): void {
-  logger.stdout(`Usage: tree-sitter-fish.wasm [options]`);
+  logger.stdout(`Usage: tree-sitter.fish.wasm [options]`);
   logger.stdout('');
   logger.stdout('Options:');
   logger.stdout('  --path, -p            Show the path to the embedded WASM (embedded://tree-sitter-fish.wasm)');
@@ -26,9 +26,9 @@ function printHelp(): void {
   logger.stdout('  --help, -h            Show this help message');
   logger.stdout('');
   logger.stdout('Examples:');
-  logger.stdout('  npx tree-sitter-fish.wasm --path');
-  logger.stdout('  npx tree-sitter-fish.wasm --copy --to ./tree-sitter-fish.wasm');
-  logger.stdout('  npx tree-sitter-fish.wasm --version');
+  logger.stdout('  npx tree-sitter.fish.wasm --path');
+  logger.stdout('  npx tree-sitter.fish.wasm --copy --to ./tree-sitter-fish.wasm');
+  logger.stdout('  npx tree-sitter.fish.wasm --version');
   process.exit(0);
 }
 

@@ -35,20 +35,20 @@ import fishLanguage from '@ndonfris/tree-sitter-fish';
 async function parseFishCode(): Promise<void> {
   await Parser.init();
   const parser = new Parser();
-  
-  // Load the WASM grammar using the default export
-  const Language = await Parser.Language.load(await fishLanguage());
+
+  // Load the WASM grammar using the default export (Uint8Array)
+  const Language = await Parser.Language.load(fishLanguage);
   parser.setLanguage(Language);
-  
+
   // Parse Fish code
   const sourceCode = `
     function greet
         echo "Hello, $argv[1]!"
     end
-    
+
     greet World
   `;
-  
+
   const tree = parser.parse(sourceCode);
   console.log(tree.rootNode.toString());
 }
@@ -60,17 +60,16 @@ parseFishCode();
 
 ```typescript
 import Parser from 'web-tree-sitter';
-import { getWasm } from '@ndonfris/tree-sitter-fish';
+import { wasmBuffer } from '@ndonfris/tree-sitter-fish';
 
 async function parseFishCode(): Promise<void> {
   await Parser.init();
   const parser = new Parser();
-  
-  // Load the WASM grammar using getWasm function
-  const wasmBinary = await getWasm();
-  const Language = await Parser.Language.load(wasmBinary);
+
+  // Load the WASM grammar using wasmBuffer
+  const Language = await Parser.Language.load(wasmBuffer);
   parser.setLanguage(Language);
-  
+
   // Parse Fish code
   const sourceCode = `echo "Hello, World!"`;
   const tree = parser.parse(sourceCode);
@@ -89,16 +88,15 @@ import fishLanguage, { highlights } from '@ndonfris/tree-sitter-fish';
 async function highlightFishCode(): Promise<void> {
   await Parser.init();
   const parser = new Parser();
-  const Language = await Parser.Language.load(await fishLanguage());
+  const Language = await Parser.Language.load(fishLanguage);
   parser.setLanguage(Language);
-  
-  // Access highlights file
-  console.log('Highlights file path:', highlights.path);
-  console.log('Highlights content:', highlights.text);
-  
+
+  // Access highlights content
+  console.log('Highlights content:', highlights);
+
   // Parse and highlight
   const tree = parser.parse('echo "Hello, World!"');
-  // Use tree and highlights.text for syntax highlighting
+  // Use tree and highlights for syntax highlighting
 }
 ```
 
@@ -113,74 +111,44 @@ import fishLanguage from '@ndonfris/tree-sitter-fish';
 async function parseWithBundle() {
   await Parser.init();
   const parser = new Parser();
-  
+
   // Everything is embedded - no external WASM files needed!
-  const Language = await Parser.Language.load(await fishLanguage());
+  const Language = await Parser.Language.load(fishLanguage);
   parser.setLanguage(Language);
-  
+
   const tree = parser.parse('echo "Hello, World!"');
   console.log(tree.rootNode.toString());
 }
 ```
 
 **Bundle Benefits:**
-- 🎯 **Single file** - no external .wasm dependencies  
+- 🎯 **Single file** - no external .wasm dependencies
 - ⚡ **No bundler configuration** - works out of the box
 - 💾 **Cache-friendly** - everything embedded as base64
-- 🔄 **Same API** - familiar tree-sitter interface
-
-### With bundlers
-
-```typescript
-import Parser from 'web-tree-sitter';
-import tsWasm from 'web-tree-sitter/tree-sitter.wasm?url';
-import tsFishWasm from '@ndonfris/tree-sitter-fish/tree-sitter-fish.wasm?url';
-
-// The parser will need to locate the wasm file to resolve correctly inside a bundled environment
-await Parser.init({
-    locateFile() {
-        return tsWasm;
-    },
-});
-const fish = await Parser.Language.load(tsFishWasm);
-```
-
-### Direct WASM Access
-
-```typescript
-import { wasmPath, languageName, highlights, getHighlightsContent } from '@ndonfris/tree-sitter-fish';
-
-// Get file paths and metadata
-console.log('WASM file location:', wasmPath);
-console.log('Language:', languageName);
-console.log('Highlights file location:', highlights.path);
-
-// Get highlights content
-const highlightsContent = getHighlightsContent();
-// or
-const highlightsContent2 = highlights.text;
-
-// Import files directly via package exports
-import highlightsFile from '@ndonfris/tree-sitter-fish/highlights.scm';
-import wasmFile from '@ndonfris/tree-sitter-fish/tree-sitter-fish.wasm';
-```
+- 🔄 **Simple API** - direct Uint8Array export
 
 ### CommonJS Usage
 
 ```javascript
-const { 
-  getWasm, 
-  wasmPath, 
-  languageName, 
+const {
+  wasmBuffer,
+  languageName,
   highlights,
-  getHighlightsContent 
+  version
 } = require('@ndonfris/tree-sitter-fish');
 
-// All functions work the same in CommonJS
+// Use wasmBuffer with tree-sitter
+const Parser = require('web-tree-sitter');
+
 async function example() {
-  const wasmBinary = await getWasm();
+  await Parser.init();
+  const parser = new Parser();
+  const Language = await Parser.Language.load(wasmBuffer);
+  parser.setLanguage(Language);
+
   console.log('Language:', languageName);
-  console.log('Highlights:', highlights.text);
+  console.log('Version:', version);
+  console.log('Highlights:', highlights);
 }
 ```
 
@@ -188,96 +156,69 @@ async function example() {
 
 ### Default Export
 
-#### `fishLanguage(): Promise<Uint8Array>`
+#### `fishLanguage: Uint8Array`
 
-The default export function that returns the WASM binary as a Uint8Array for tree-sitter.
+The default export is the embedded WASM binary as a Uint8Array, ready to use with tree-sitter.
 
-- **Returns**: Promise that resolves to Uint8Array containing the WASM binary
+- **Type**: `Uint8Array`
 - **Environment**: Works in both Node.js and browser environments
 - **Usage**: `import fishLanguage from '@ndonfris/tree-sitter-fish'`
 
 ### Named Exports
 
-#### `getWasm(): Promise<ArrayBuffer>`
+#### `wasmBuffer: Uint8Array`
 
-Returns the WebAssembly binary data for the tree-sitter-fish grammar.
+The embedded WebAssembly binary data for the tree-sitter-fish grammar.
 
-- **Returns**: Promise that resolves to ArrayBuffer containing the WASM binary
+- **Type**: `Uint8Array`
 - **Environment**: Works in both Node.js and browser environments
-
-#### `wasmPath: string`
-
-Path to the tree-sitter-fish.wasm file in the package.
 
 #### `languageName: string`
 
-The language identifier ('fish').
+The language identifier constant.
 
-#### `highlights: { path: string; text: string }`
+- **Value**: `'fish'`
 
-Object containing highlights information:
-- `path`: Absolute path to the highlights.scm file
-- `text`: Raw content of the highlights.scm file
+#### `highlights: string`
 
-#### `getHighlightsContent(): string`
+The embedded content of the highlights.scm file as a string.
 
-Function that returns the raw content of the highlights.scm file.
-
-#### `highlightsPath: string`
-
-Path to the highlights.scm file in the package.
-
-### File Exports
-
-#### `@ndonfris/tree-sitter-fish/tree-sitter-fish.wasm`
-
-Direct access to the WASM file.
-
-#### `@ndonfris/tree-sitter-fish/highlights.scm`
-
-Direct access to the highlights file.
-
-#### `@ndonfris/tree-sitter-fish/queries/*`
-
-Direct access to any file in the queries directory.
-
-### Additional Exports
+- **Type**: `string`
+- **Contains**: Tree-sitter query patterns for syntax highlighting
 
 #### `version: string`
 
 Package version for debugging and compatibility checks.
 
-#### `getWasmUint8Array(): Promise<Uint8Array>`
-
-Optimized function that returns WASM as Uint8Array (preferred for tree-sitter).
+- **Type**: `string`
+- **Source**: From package.json
 
 ```javascript
-// All exports are now bundled by default:
-import fishLanguage, { 
-  getWasm, 
-  getWasmUint8Array, 
-  highlights, 
-  languageName, 
-  version 
+// All available exports:
+import fishLanguage, {
+  wasmBuffer,
+  highlights,
+  languageName,
+  version
 } from '@ndonfris/tree-sitter-fish';
 ```
 
 ## CLI Usage
 
-This package includes a CLI tool for building and managing the WASM file:
+This package includes a CLI tool for extracting the embedded WASM file:
 
 ```bash
 # Show the embedded WASM path
-npx tree-sitter-fish.wasm --path
+npx tree-sitter.fish.wasm --path
 
 # Extract the embedded WASM to a file
-npx tree-sitter-fish.wasm --copy --to ./tree-sitter-fish.wasm
+npx tree-sitter.fish.wasm --copy --to ./tree-sitter-fish.wasm
 
 # Show package version
-npx tree-sitter-fish.wasm --version
+npx tree-sitter.fish.wasm --version
 
 # Show help
-npx tree-sitter-fish.wasm --help
+npx tree-sitter.fish.wasm --help
 ```
 
 ## Build Process
@@ -323,82 +264,29 @@ yarn dev:install /path/to/target/project
 - Automatically removes the old cached version
 - Restores original version after packing
 
-## Bundler Examples
+## Bundler Support
 
-For browser environments, you may need to configure your bundler to handle `.wasm` files or serve them statically.
+**No bundler configuration needed!** Since the WASM binary is embedded as base64 in the JavaScript bundle, it works out of the box with all bundlers:
 
-<table>
-<tr>
-<td>
+- ✅ **Webpack** - Works without configuration
+- ✅ **Vite** - Works without configuration
+- ✅ **ESBuild** - Works without configuration
+- ✅ **Rollup** - Works without configuration
+- ✅ **Bun** - Works without configuration
+- ✅ **Parcel** - Works without configuration
 
-### Webpack
+Simply import and use - no special loaders or plugins required:
 
-```javascript
-// webpack.config.js
-module.exports = {
-  module: {
-    rules: [
-      {
-        test: /\.wasm$/,
-        type: 'asset/resource',
-      },
-    ],
-  },
-};
+```typescript
+import Parser from 'web-tree-sitter';
+import fishLanguage from '@ndonfris/tree-sitter-fish';
+
+// Works everywhere - bundlers see it as a regular JavaScript module
+await Parser.init();
+const parser = new Parser();
+const Language = await Parser.Language.load(fishLanguage);
+parser.setLanguage(Language);
 ```
-
-</td>
-<td>
-
-### ESBuild
-
-```javascript
-// esbuild.config.js
-import { build } from 'esbuild';
-
-build({
-  entryPoints: ['src/index.js'],
-  bundle: true,
-  outfile: 'dist/bundle.js',
-  loader: {
-    '.wasm': 'file'
-  },
-});
-```
-
-</td>
-</tr>
-<tr>
-<td>
-
-### Vite
-
-```javascript
-// vite.config.js
-import { defineConfig } from 'vite';
-
-export default defineConfig({
-  assetsInclude: ['**/*.wasm'],
-});
-```
-
-</td>
-<td>
-
-### Bun
-
-```javascript
-// Bun handles .wasm files automatically
-// No additional configuration needed
-import { getWasm } from '@ndonfris/tree-sitter-fish';
-
-// Just use it directly
-const wasmBinary = await getWasm();
-```
-
-</td>
-</tr>
-</table>
 
 ## Compatibility
 
