@@ -2,27 +2,19 @@
 
 A [WebAssembly](https://webassembly.org/) build of [tree-sitter-fish](https://github.com/ram02z/tree-sitter-fish) grammar for parsing [fish shell](https://fishshell.com/) syntax in web browsers and Node.js environments.
 
-This package provides standalone bundles with all assets embedded - no external WASM or query files needed!
+This is a **library-only package** with all assets embedded - no external WASM or query files needed! Perfect for bundlers and applications that need fish shell parsing capabilities.
 
 Inspired by [@esdmr/tree-sitter-fish](https://github.com/esdmr/tree-sitter-fish) for providing WASM builds.
 
 ## Installation
-
-### WASM file only
-
-```bash
-npm install @ndonfris/tree-sitter-fish
-# or
-yarn add @ndonfris/tree-sitter-fish
-```
-
-### With web-tree-sitter (recommended)
 
 ```bash
 npm install @ndonfris/tree-sitter-fish web-tree-sitter
 # or
 yarn add @ndonfris/tree-sitter-fish web-tree-sitter
 ```
+
+> **Note**: `web-tree-sitter` is required as a peer dependency for parsing functionality.
 
 ## Usage
 
@@ -152,7 +144,7 @@ async function example() {
 }
 ```
 
-## API
+## API Reference
 
 ### Default Export
 
@@ -200,26 +192,31 @@ import fishLanguage, {
   highlights,
   languageName,
   version
-} from '@ndonfris/tree-sitter-fish';
+} from '@ndonfris/tree-sitter-fish'} from '@ndonfris/tree-sitter-fish';
 ```
 
-## CLI Usage
+## Utility Scripts
 
-This package includes a CLI tool for extracting the embedded WASM file:
+While this package doesn't include a CLI, it provides utility scripts that you can run directly if needed:
 
 ```bash
-# Show the embedded WASM path
-npx tree-sitter.fish.wasm --path
+# Show package information
+node node_modules/@ndonfris/tree-sitter-fish/bin/show-info.js
 
-# Extract the embedded WASM to a file
-npx tree-sitter.fish.wasm --copy --to ./tree-sitter-fish.wasm
+# Extract WASM file to a specific location
+node node_modules/@ndonfris/tree-sitter-fish/bin/extract-wasm.js ./tree-sitter-fish.wasm
 
-# Show package version
-npx tree-sitter.fish.wasm --version
+# Validate WASM integrity
+node node_modules/@ndonfris/tree-sitter-fish/bin/validate-wasm.js
 
-# Show help
-npx tree-sitter.fish.wasm --help
+# Show syntax highlighting queries
+node node_modules/@ndonfris/tree-sitter-fish/bin/show-highlights.js
+
+# Show version only
+node node_modules/@ndonfris/tree-sitter-fish/bin/show-version.js
 ```
+
+> **Note**: These scripts are primarily for debugging and advanced use cases. For normal usage, just import the module directly.
 
 ## Build Process
 
@@ -294,7 +291,18 @@ parser.setLanguage(Language);
 - **Browsers**: Modern browsers with WebAssembly support
 - **TypeScript**: Full TypeScript support with generated type definitions
 - **Module Systems**: Supports both ESM and CommonJS
-- **Dependencies**: Requires `web-tree-sitter` as a peer dependency for parsing
+- **Peer Dependencies**: Requires `web-tree-sitter` for parsing functionality
+
+## Library Focus
+
+This package is designed as a **library-only** solution for integrating fish shell parsing into applications. It includes:
+
+- ✅ **Embedded WASM binary** - No external file dependencies
+- ✅ **Syntax highlighting queries** - Built-in highlighting support
+- ✅ **TypeScript definitions** - Full type safety
+- ✅ **Bundler compatibility** - Works with all major bundlers out of the box
+- ✅ **Multiple formats** - ESM and CommonJS support
+- ✅ **Utility scripts** - Optional tools for debugging and extraction
 
 ## Version Sync
 
