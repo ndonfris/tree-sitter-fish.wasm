@@ -125,10 +125,47 @@ function main(): void {
 }
 
 // Run CLI if this module is executed directly
-// ESM: check import.meta.url against process.argv[1]
-// CJS: check require.main === module
-if (
-  typeof require !== 'undefined' && typeof module !== 'undefined' && require.main === module
-) {
+// Only run CLI when:
+// 1. Not imported as a dependency (check if we're in node_modules)
+// 2. Module is executed directly (not imported)
+function isMainModule(): boolean {
+  // Don't run CLI if we're inside node_modules
+  // For CommonJS, use __filename; for ESM, we'll rely on the module check
+  if (typeof __filename !== 'undefined' && __filename.includes('node_modules')) {
+    return false;
+  }
+  
+  // For ESM, check if current file URL contains node_modules
+  // Use try-catch to avoid issues in different environments
+  try {
+    // Only access import.meta in ES module context
+    if (typeof module === 'undefined') {
+      // We're likely in an ES module
+      const currentUrl = new Error().stack?.split('\n')[1];
+      if (currentUrl && currentUrl.includes('node_modules')) {
+        return false;
+      }
+    }
+  } catch {
+    // Ignore errors
+  }
+  
+  // CommonJS check
+  if (typeof require !== 'undefined' && typeof module !== 'undefined') {
+    return require.main === module;
+  }
+  
+  // For ES modules, we need a different approach since we can't use import.meta directly
+  // Check if we're the main module by comparing process.argv[1]
+  if (typeof module === 'undefined' && process.argv[1]) {
+    // In ES modules, if we got this far, assume we're the main module
+    // unless we detected node_modules above
+    return true;
+  }
+  
+  return false;
+}
+
+if (isMainModule()) {
   main();
 }
