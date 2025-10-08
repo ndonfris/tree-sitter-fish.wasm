@@ -40,9 +40,6 @@ async function buildPackage() {
       '.wasm': 'binary',
       '.scm': 'text',
     },
-    banner: {
-      js: '#!/usr/bin/env node\n// @ndonfris/tree-sitter-fish - ESM bundle + CLI'
-    }
   });
 
   // Build CJS bundle (also serves as CLI)
@@ -59,9 +56,6 @@ async function buildPackage() {
       '.wasm': 'binary',
       '.scm': 'text',
     },
-    banner: {
-      js: '#!/usr/bin/env node\n// @ndonfris/tree-sitter-fish - CommonJS bundle + CLI'
-    },
     footer: {
       js: `
 // Ensure proper default export for CommonJS
@@ -71,9 +65,6 @@ if (module.exports.default) {
     }
   });
 
-  // Make bundles executable (for CLI usage)
-  chmodSync(resolve('dist/index.js'), 0o755);
-  chmodSync(resolve('dist/index.mjs'), 0o755);
 
   // Generate TypeScript declarations
   execSync('yarn build:types', { encoding: 'utf-8' });
@@ -82,8 +73,8 @@ if (module.exports.default) {
   // writeFileSync(resolve('dist/index.d.mts'), dtsContent);
 
   console.log('✅ Build complete! Generated files:');
-  console.log('  📦 dist/index.js (CommonJS bundle + CLI - bin entry point)');
-  console.log('  📦 dist/index.mjs (ESM bundle + CLI)');
+  console.log('  📦 dist/index.js (CommonJS bundle)');
+  console.log('  📦 dist/index.mjs (ESM bundle)');
   console.log('  📦 dist/index.d.ts (TypeScript definitions)');
   console.log('  ✅ All assets embedded - no external dependencies!');
 }
