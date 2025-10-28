@@ -1,6 +1,6 @@
 {
   "name": "@ndonfris/tree-sitter-fish",
-  "version": "3.6.0-dev.1759885298139",
+  "version": "3.6.0-patch.0",
   "description": "Tree-sitter grammar for Fish shell with WebAssembly support",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
