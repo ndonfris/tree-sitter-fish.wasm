@@ -14,7 +14,7 @@ export const languageName = 'fish' as const;
  * Embedded Wasm Buffer
  */
 export const wasmBuffer: Uint8Array = Buffer.from(EMBEDDED_WASM, 'base64');
-export const uint8ArrayWasmBuffer: Uint8Array = Uint8Array.from(EMBEDDED_WASM, c => c.charCodeAt(0));
+export const uint8ArrayWasmBuffer: Uint8Array = Uint8Array.from(wasmBuffer);
 
 /**
  * Package version
