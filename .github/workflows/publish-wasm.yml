@@ -1,0 +1,220 @@
+name: Publish WASM to NPM
+
+on:
+  create:
+    # Triggers when a new branch is pushed to GitHub
+  schedule:
+    # Check for new upstream releases twice weekly (Monday and Thursday at 9 AM UTC)
+    - cron: '0 9 * * 1,4'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Override version (e.g., 3.6.0-patch.2). Leave empty for auto-resolution.'
+        required: false
+        type: string
+      version_source:
+        description: 'Version source strategy'
+        required: false
+        type: choice
+        default: 'auto'
+        options:
+          - auto
+          - use-branch-version
+          - use-latest-remote-release
+
+permissions:
+  contents: write
+  id-token: write
+  pull-requests: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job: Detect new upstream release, create PR, and publish
+  # ---------------------------------------------------------------------------
+  upstream-release:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check for new upstream release
+      id: check
+      run: |
+        LATEST_TAG=$(curl -s https://api.github.com/repos/ram02z/tree-sitter-fish/releases/latest | jq -r '.tag_name')
+        LATEST_VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
+        echo "upstream_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+        echo "upstream_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+        echo "Latest upstream release: $LATEST_TAG"
+
+    - name: Check if already published
+      id: published
+      run: |
+        UPSTREAM="${{ steps.check.outputs.upstream_version }}"
+        EXISTING=$(npm view @ndonfris/tree-sitter-fish versions --json 2>/dev/null | jq -r 'if type == "array" then .[] else . end' || echo "")
+        if echo "$EXISTING" | grep -qx "$UPSTREAM"; then
+          echo "skip=true" >> $GITHUB_OUTPUT
+          echo "Version $UPSTREAM already published to npm"
+        else
+          echo "skip=false" >> $GITHUB_OUTPUT
+          echo "New version $UPSTREAM not yet published"
+        fi
+
+    - name: Checkout repo
+      if: steps.published.outputs.skip == 'false'
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      if: steps.published.outputs.skip == 'false'
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: Install Yarn
+      if: steps.published.outputs.skip == 'false'
+      run: npm install -g yarn@1.22.22
+
+    - name: Setup Emscripten
+      if: steps.published.outputs.skip == 'false'
+      uses: mymindstorm/setup-emsdk@v14
+      with:
+        version: '3.1.45'
+
+    - name: Build and publish
+      if: steps.published.outputs.skip == 'false'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        chmod +x ./npm-package/build.sh
+        ./npm-package/build.sh --use-latest-remote-release --tag latest --publish
+
+    - name: Update last-version.txt and create PR
+      if: steps.published.outputs.skip == 'false'
+      run: |
+        UPSTREAM_VERSION="${{ steps.check.outputs.upstream_version }}"
+        BRANCH="auto/upstream-${UPSTREAM_VERSION}"
+
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git checkout -b "$BRANCH"
+        echo "$UPSTREAM_VERSION" > last-version.txt
+        git add last-version.txt
+        git commit -m "chore: update to upstream ${{ steps.check.outputs.upstream_tag }}"
+        git push origin "$BRANCH"
+
+        gh pr create \
+          --title "chore: update to upstream ${{ steps.check.outputs.upstream_tag }}" \
+          --body "Auto-generated PR for ram02z/tree-sitter-fish release [${{ steps.check.outputs.upstream_tag }}](https://github.com/ram02z/tree-sitter-fish/releases/tag/${{ steps.check.outputs.upstream_tag }}).
+
+        Published \`@ndonfris/tree-sitter-fish@${UPSTREAM_VERSION}\` to npm." \
+          --base master
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # Job: Build and publish (branch creation or manual dispatch)
+  # ---------------------------------------------------------------------------
+  publish:
+    # Only run for:
+    #   - workflow_dispatch (manual trigger)
+    #   - create event for branches matching [patch|branch|dev|nightly|latest]/*
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.ref_type == 'branch' && (
+        startsWith(github.ref_name, 'patch/') ||
+        startsWith(github.ref_name, 'branch/') ||
+        startsWith(github.ref_name, 'dev/') ||
+        startsWith(github.ref_name, 'nightly/') ||
+        startsWith(github.ref_name, 'latest/')
+      ))
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: Install Yarn
+      run: npm install -g yarn@1.22.22
+
+    - name: Setup Emscripten
+      uses: mymindstorm/setup-emsdk@v14
+      with:
+        version: '3.1.45'
+
+    - name: Parse branch version
+      id: branch
+      env:
+        REF_NAME: ${{ github.ref_name }}
+        VERSION_SOURCE_INPUT: ${{ github.event.inputs.version_source }}
+        OVERRIDE_VERSION: ${{ github.event.inputs.version }}
+      run: |
+        VERSION_SOURCE="${VERSION_SOURCE_INPUT:-auto}"
+        NPM_TAG="patch"
+        BUILD_ARGS=""
+
+        if [[ "$VERSION_SOURCE" == "use-branch-version" || "$VERSION_SOURCE" == "auto" && "$OVERRIDE_VERSION" == "" ]]; then
+          # Parse branch name: [tag]/[version] or just [version]
+          if [[ "$REF_NAME" == */* ]]; then
+            MAYBE_TAG="${REF_NAME%%/*}"
+            MAYBE_VERSION="${REF_NAME#*/}"
+          else
+            MAYBE_TAG=""
+            MAYBE_VERSION="$REF_NAME"
+          fi
+
+          # Validate tag prefix
+          case "$MAYBE_TAG" in
+            patch|branch|dev|nightly|latest) NPM_TAG="$MAYBE_TAG" ;;
+            *) NPM_TAG="patch" ;;
+          esac
+
+          # Strip leading 'v' prefix if present
+          MAYBE_VERSION="${MAYBE_VERSION#v}"
+
+          # Write branch spec to last-version.txt for --use-branch-version
+          if [[ "$MAYBE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "${NPM_TAG}/${MAYBE_VERSION}" > last-version.txt
+            BUILD_ARGS="--use-branch-version"
+          fi
+          # If no valid version, leave BUILD_ARGS empty (auto-resolution)
+        fi
+
+        if [[ "$VERSION_SOURCE" == "use-latest-remote-release" ]]; then
+          NPM_TAG="latest"
+          BUILD_ARGS="--use-latest-remote-release"
+        fi
+
+        if [[ -n "$OVERRIDE_VERSION" ]]; then
+          BUILD_ARGS="-v $OVERRIDE_VERSION"
+        fi
+
+        echo "npm_tag=$NPM_TAG" >> $GITHUB_OUTPUT
+        echo "build_args=$BUILD_ARGS" >> $GITHUB_OUTPUT
+        echo "Resolved: tag=$NPM_TAG build_args='$BUILD_ARGS'"
+
+    - name: Build, pack, and publish
+      id: build
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        chmod +x ./npm-package/build.sh
+        ./npm-package/build.sh \
+          ${{ steps.branch.outputs.build_args }} \
+          --tag ${{ steps.branch.outputs.npm_tag }} \
+          --publish
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: npm-package-${{ github.ref_name }}
+        path: npm-package/*.tgz
+        retention-days: 30

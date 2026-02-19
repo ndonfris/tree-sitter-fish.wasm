@@ -5,3 +5,10 @@
 tree-sitter-fish.wasm
 package-lock.json
 Cargo.lock
+*.tgz
+dist/
+yarn.lock
+./npm-package/package.json
+.github/workflows/*.yml
+!.github/workflows/publish-wasm.yml
+./scripts
